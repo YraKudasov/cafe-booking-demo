@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Кафе «Тёплый угол» — бронирование столиков</title>
+<style>
+  :root {
+    --bg: #1c1713;
+    --panel: #26201a;
+    --accent: #d9a05b;
+    --accent-dark: #b9823f;
+    --text: #f0e8dd;
+    --muted: #a89a88;
+    --ok: #7dbb6f;
+    --bad: #c96b5f;
+    --radius: 14px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+
+  header { padding: 70px 0 50px; text-align: center; background: radial-gradient(ellipse at top, #2e2519 0%, var(--bg) 70%); }
+  header h1 { font-family: Georgia, serif; font-size: 44px; color: var(--accent); letter-spacing: 1px; }
+  header p { color: var(--muted); margin-top: 10px; font-size: 18px; }
+  .badges { margin-top: 22px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .badge { background: var(--panel); border: 1px solid #3a3128; padding: 8px 16px; border-radius: 999px; font-size: 14px; color: var(--muted); }
+
+  section { padding: 40px 0; }
+  h2 { font-family: Georgia, serif; color: var(--accent); font-size: 28px; margin-bottom: 18px; }
+
+  .menu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .menu-card { background: var(--panel); border-radius: var(--radius); padding: 20px; border: 1px solid #3a3128; }
+  .menu-card h3 { color: var(--text); font-size: 17px; }
+  .menu-card p { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  .menu-card .price { color: var(--accent); margin-top: 10px; font-weight: 600; }
+
+  /* Бронирование */
+  #booking { background: var(--panel); border-radius: var(--radius); padding: 30px; border: 1px solid #3a3128; margin-bottom: 60px; }
+  .field { margin-bottom: 18px; }
+  label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 14px; }
+  input, select { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #45392c;
+    background: #1a1510; color: var(--text); font-size: 16px; outline: none; }
+  input:focus, select:focus { border-color: var(--accent); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 560px) { .row { grid-template-columns: 1fr; } }
+
+  .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin: 10px 0 4px; }
+  .slot { padding: 12px 8px; border-radius: 10px; border: 1px solid #45392c; background: #1a1510;
+    text-align: center; cursor: pointer; transition: all .15s; }
+  .slot:hover { border-color: var(--accent); }
+  .slot.selected { border-color: var(--accent); background: #33270f; box-shadow: 0 0 0 1px var(--accent); }
+  .slot.full { opacity: .38; cursor: not-allowed; }
+  .slot .time { font-size: 17px; font-weight: 600; }
+  .slot .left { font-size: 12px; margin-top: 2px; }
+  .slot .left.ok { color: var(--ok); }
+  .slot .left.few { color: var(--accent); }
+  .slot .left.none { color: var(--bad); }
+
+  button { width: 100%; padding: 15px; margin-top: 8px; border: none; border-radius: 10px; cursor: pointer;
+    background: var(--accent); color: #241a0d; font-size: 17px; font-weight: 700; transition: background .15s; }
+  button:hover { background: var(--accent-dark); }
+  button:disabled { opacity: .5; cursor: wait; }
+
+  .msg { margin-top: 16px; padding: 14px; border-radius: 10px; font-size: 15px; display: none; }
+  .msg.ok { display: block; background: #22301f; border: 1px solid var(--ok); color: #b9dfb0; }
+  .msg.err { display: block; background: #33211e; border: 1px solid var(--bad); color: #e6b0a8; }
+
+  .demo-note { font-size: 13px; color: var(--muted); margin-top: 14px; text-align: center; }
+  .spinner { color: var(--muted); font-size: 14px; padding: 8px 0; }
+  footer { text-align: center; color: var(--muted); font-size: 14px; padding: 30px 0 40px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>Кафе «Тёплый угол»</h1>
+    <p>Домашняя кухня, свежая выпечка и кофе на дровах</p>
+    <div class="badges">
+      <span class="badge">☕ Ежедневно 10:00 – 22:00</span>
+      <span class="badge">📍 ул. Пекарская, 7</span>
+      <span class="badge">📞 +7 (900) 123-45-67</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <section>
+    <h2>Из меню</h2>
+    <div class="menu-grid">
+      <div class="menu-card"><h3>Сырники со сметаной</h3><p>Классика на завтрак, подаём до 14:00</p><div class="price">320 ₽</div></div>
+      <div class="menu-card"><h3>Тыквенный крем-суп</h3><p>С тыквенными семечками и трюфельным маслом</p><div class="price">390 ₽</div></div>
+      <div class="menu-card"><h3>Паста с белыми грибами</h3><p>Домашняя тальятелле, сливочный соус</p><div class="price">540 ₽</div></div>
+      <div class="menu-card"><h3>Фирменный раф</h3><p>На кокосовых сливках с лавандой</p><div class="price">280 ₽</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Забронировать столик</h2>
+    <div id="booking">
+      <div class="row">
+        <div class="field">
+          <label for="date">Дата</label>
+          <input type="date" id="date">
+        </div>
+        <div class="field">
+          <label for="guests">Гостей</label>
+          <select id="guests">
+            <option>1</option><option selected>2</option><option>3</option>
+            <option>4</option><option>5</option><option>6</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Время (показано, сколько столиков свободно в каждый час)</label>
+        <div id="slots" class="slots"></div>
+        <div id="slotsSpinner" class="spinner" style="display:none">Загружаю свободные слоты…</div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="name">Ваше имя</label>
+          <input type="text" id="name" placeholder="Иван">
+        </div>
+        <div class="field">
+          <label for="phone">Телефон</label>
+          <input type="tel" id="phone" placeholder="+7 (___) ___-__-__">
+        </div>
+      </div>
+
+      <button id="bookBtn">Забронировать</button>
+      <div id="msg" class="msg"></div>
+      <div id="demoNote" class="demo-note" style="display:none">
+        ⚠ Демо-режим: бэкенд не подключён, брони хранятся только в памяти страницы.
+        Впишите URL веб-приложения Apps Script в константу SCRIPT_URL.
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer>Кафе «Тёплый угол» · демо автоматизированной системы создания сайтов</footer>
+
+<script>
+/* ============================== НАСТРОЙКА ==============================
+   1. Разверните Code.gs как веб-приложение Apps Script (см. НАСТРОЙКА.md)
+   2. Вставьте полученный URL сюда:                                       */
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwoD6QpxtK1SQK_fyyhX7E6u_XFU5IKgFYBSBK98t-nE63CajWp-EJ5XQvgMisnx7jxzw/exec';
+
+const OPEN_HOUR  = 10;   // должно совпадать с настройками в Code.gs
+const CLOSE_HOUR = 22;
+const TABLES_PER_SLOT = 5;
+/* ======================================================================= */
+
+const DEMO = !SCRIPT_URL;
+let selectedHour = null;
+let demoBookings = {}; // 'YYYY-MM-DD|hour' -> счётчик (только для демо-режима)
+
+const $ = id => document.getElementById(id);
+
+// --- инициализация даты: сегодня, min = сегодня ---
+(function init() {
+  const t = new Date();
+  const iso = t.toISOString().slice(0, 10);
+  $('date').value = iso;
+  $('date').min = iso;
+  if (DEMO) {
+    $('demoNote').style.display = 'block';
+    // немного случайной "занятости" для наглядности демо
+    for (let h = OPEN_HOUR; h < CLOSE_HOUR; h++) {
+      demoBookings[iso + '|' + h] = Math.floor(Math.random() * (TABLES_PER_SLOT + 1));
+    }
+  }
+  loadSlots();
+})();
+
+$('date').addEventListener('change', loadSlots);
+
+async function loadSlots() {
+  const date = $('date').value;
+  selectedHour = null;
+  $('slots').innerHTML = '';
+  $('slotsSpinner').style.display = 'block';
+
+  let availability; // { hour: свободноСтоликов }
+  if (DEMO) {
+    availability = {};
+    for (let h = OPEN_HOUR; h < CLOSE_HOUR; h++) {
+      availability[h] = TABLES_PER_SLOT - (demoBookings[date + '|' + h] || 0);
+    }
+  } else {
+    try {
+      const r = await fetch(SCRIPT_URL + '?action=slots&date=' + date);
+      const data = await r.json();
+      availability = data.slots;
+    } catch (e) {
+      $('slotsSpinner').style.display = 'none';
+      showMsg('Не удалось загрузить свободные слоты. Техническая причина: ' + e.name + ' — ' + e.message, false);
+      return;
+    }
+  }
+
+  $('slotsSpinner').style.display = 'none';
+  renderSlots(availability);
+}
+
+function renderSlots(availability) {
+  const box = $('slots');
+  box.innerHTML = '';
+  const now = new Date();
+  const isToday = $('date').value === now.toISOString().slice(0, 10);
+
+  for (let h = OPEN_HOUR; h < CLOSE_HOUR; h++) {
+    const left = availability[h] ?? TABLES_PER_SLOT;
+    const past = isToday && h <= now.getHours();
+    const full = left <= 0 || past;
+
+    const el = document.createElement('div');
+    el.className = 'slot' + (full ? ' full' : '');
+    const cls = left <= 0 ? 'none' : left <= 2 ? 'few' : 'ok';
+    el.innerHTML = '<div class="time">' + String(h).padStart(2, '0') + ':00</div>' +
+      '<div class="left ' + cls + '">' +
+      (past ? 'прошло' : left <= 0 ? 'мест нет' : 'свободно: ' + left) + '</div>';
+
+    if (!full) el.addEventListener('click', () => {
+      document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedHour = h;
+      hideMsg();
+    });
+    box.appendChild(el);
+  }
+}
+
+$('bookBtn').addEventListener('click', async () => {
+  hideMsg();
+  const name = $('name').value.trim();
+  const phone = $('phone').value.trim();
+  const date = $('date').value;
+
+  if (selectedHour === null) return showMsg('Выберите время.', false);
+  if (!name) return showMsg('Укажите имя.', false);
+  if (!phone) return showMsg('Укажите телефон.', false);
+
+  const btn = $('bookBtn');
+  btn.disabled = true;
+  btn.textContent = 'Бронирую…';
+
+  const payload = { action: 'book', date, hour: selectedHour, name, phone, guests: $('guests').value };
+
+  try {
+    let result;
+    if (DEMO) {
+      await new Promise(r => setTimeout(r, 500));
+      const key = date + '|' + selectedHour;
+      const used = demoBookings[key] || 0;
+      if (used >= TABLES_PER_SLOT) {
+        result = { ok: false, error: 'К сожалению, на это время всё занято.' };
+      } else {
+        demoBookings[key] = used + 1;
+        result = { ok: true };
+      }
+    } else {
+      // Content-Type не указываем намеренно: text/plain не требует CORS preflight,
+      // который Apps Script не поддерживает.
+      const r = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+      result = await r.json();
+    }
+
+    if (result.ok) {
+      showMsg('✅ Столик забронирован на ' + date + ' в ' +
+        String(selectedHour).padStart(2, '0') + ':00. Ждём вас, ' + name + '!', true);
+      loadSlots();
+    } else {
+      showMsg(result.error || 'Не получилось забронировать. Попробуйте другое время.', false);
+      loadSlots();
+    }
+  } catch (e) {
+    showMsg('Ошибка соединения: ' + e.message, false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Забронировать';
+  }
+});
+
+function showMsg(text, ok) {
+  const m = $('msg');
+  m.textContent = text;
+  m.className = 'msg ' + (ok ? 'ok' : 'err');
+}
+function hideMsg() { $('msg').className = 'msg'; }
+</script>
+</body>
+</html>
