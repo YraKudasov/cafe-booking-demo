@@ -114,7 +114,7 @@
       </div>
 
       <div class="field">
-        <label>Время (показано, сколько столиков свободно в каждый час)</label>
+        <label>Время (показано, сколько подходящих столов свободно для вашей компании)</label>
         <div id="slots" class="slots"></div>
         <div id="slotsSpinner" class="spinner" style="display:none">Загружаю свободные слоты…</div>
       </div>
@@ -150,12 +150,34 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwoD6QpxtK1SQK_fyyhX
 
 const OPEN_HOUR  = 10;   // должно совпадать с настройками в Code.gs
 const CLOSE_HOUR = 22;
-const TABLES_PER_SLOT = 5;
+// Парк столов (для демо-режима; в боевом режиме этим управляет Code.gs)
+const TABLES = [
+  { seats: 2, count: 4 },
+  { seats: 4, count: 3 },
+  { seats: 6, count: 2 }
+];
 /* ======================================================================= */
 
 const DEMO = !SCRIPT_URL;
 let selectedHour = null;
-let demoBookings = {}; // 'YYYY-MM-DD|hour' -> счётчик (только для демо-режима)
+let demoUsed = {}; // 'YYYY-MM-DD|hour|seats' -> занято столов (только для демо-режима)
+
+function demoFreeSuitable(date, hour, guests) {
+  let n = 0;
+  for (const t of TABLES) {
+    if (t.seats >= guests) n += Math.max(0, t.count - (demoUsed[date + '|' + hour + '|' + t.seats] || 0));
+  }
+  return n;
+}
+
+function demoPickTable(date, hour, guests) {
+  for (const t of [...TABLES].sort((a, b) => a.seats - b.seats)) {
+    if (t.seats < guests) continue;
+    const key = date + '|' + hour + '|' + t.seats;
+    if ((demoUsed[key] || 0) < t.count) { demoUsed[key] = (demoUsed[key] || 0) + 1; return t; }
+  }
+  return null;
+}
 
 const $ = id => document.getElementById(id);
 
@@ -169,29 +191,33 @@ const $ = id => document.getElementById(id);
     $('demoNote').style.display = 'block';
     // немного случайной "занятости" для наглядности демо
     for (let h = OPEN_HOUR; h < CLOSE_HOUR; h++) {
-      demoBookings[iso + '|' + h] = Math.floor(Math.random() * (TABLES_PER_SLOT + 1));
+      for (const t of TABLES) {
+        demoUsed[iso + '|' + h + '|' + t.seats] = Math.floor(Math.random() * (t.count + 1));
+      }
     }
   }
   loadSlots();
 })();
 
 $('date').addEventListener('change', loadSlots);
+$('guests').addEventListener('change', loadSlots);
 
 async function loadSlots() {
   const date = $('date').value;
+  const guests = Number($('guests').value);
   selectedHour = null;
   $('slots').innerHTML = '';
   $('slotsSpinner').style.display = 'block';
 
-  let availability; // { hour: свободноСтоликов }
+  let availability; // { hour: свободных подходящих столов }
   if (DEMO) {
     availability = {};
     for (let h = OPEN_HOUR; h < CLOSE_HOUR; h++) {
-      availability[h] = TABLES_PER_SLOT - (demoBookings[date + '|' + h] || 0);
+      availability[h] = demoFreeSuitable(date, h, guests);
     }
   } else {
     try {
-      const r = await fetch(SCRIPT_URL + '?action=slots&date=' + date);
+      const r = await fetch(SCRIPT_URL + '?action=slots&date=' + date + '&guests=' + guests);
       const data = await r.json();
       availability = data.slots;
     } catch (e) {
@@ -212,7 +238,7 @@ function renderSlots(availability) {
   const isToday = $('date').value === now.toISOString().slice(0, 10);
 
   for (let h = OPEN_HOUR; h < CLOSE_HOUR; h++) {
-    const left = availability[h] ?? TABLES_PER_SLOT;
+    const left = availability[h] ?? 0;
     const past = isToday && h <= now.getHours();
     const full = left <= 0 || past;
 
@@ -221,7 +247,7 @@ function renderSlots(availability) {
     const cls = left <= 0 ? 'none' : left <= 2 ? 'few' : 'ok';
     el.innerHTML = '<div class="time">' + String(h).padStart(2, '0') + ':00</div>' +
       '<div class="left ' + cls + '">' +
-      (past ? 'прошло' : left <= 0 ? 'мест нет' : 'свободно: ' + left) + '</div>';
+      (past ? 'прошло' : left <= 0 ? 'мест нет' : 'столов: ' + left) + '</div>';
 
     if (!full) el.addEventListener('click', () => {
       document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
@@ -253,14 +279,9 @@ $('bookBtn').addEventListener('click', async () => {
     let result;
     if (DEMO) {
       await new Promise(r => setTimeout(r, 500));
-      const key = date + '|' + selectedHour;
-      const used = demoBookings[key] || 0;
-      if (used >= TABLES_PER_SLOT) {
-        result = { ok: false, error: 'К сожалению, на это время всё занято.' };
-      } else {
-        demoBookings[key] = used + 1;
-        result = { ok: true };
-      }
+      const table = demoPickTable(date, selectedHour, Number($('guests').value));
+      result = table ? { ok: true, seats: table.seats }
+                     : { ok: false, error: 'К сожалению, на это время нет свободного стола такой вместимости.' };
     } else {
       // Content-Type не указываем намеренно: text/plain не требует CORS preflight,
       // который Apps Script не поддерживает.
@@ -269,7 +290,8 @@ $('bookBtn').addEventListener('click', async () => {
     }
 
     if (result.ok) {
-      showMsg('✅ Столик забронирован на ' + date + ' в ' +
+      showMsg('✅ Забронирован ' + (result.seats ? result.seats + '-местный стол' : 'столик') +
+        ' на ' + date + ' в ' +
         String(selectedHour).padStart(2, '0') + ':00. Ждём вас, ' + name + '!', true);
       loadSlots();
     } else {
