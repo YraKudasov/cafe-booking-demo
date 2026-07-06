@@ -17,7 +17,8 @@ var CONFIG = {
   OPEN_HOUR: 10,            // кафе открывается
   CLOSE_HOUR: 22,           // последний слот: 21:00-22:00
   SLOT_MINUTES: 60,         // длительность брони
-  EVENT_PREFIX: 'Бронь: '   // по этому префиксу отличаем брони от других событий
+  EVENT_PREFIX: 'Бронь: ',  // по этому префиксу отличаем брони от других событий
+  NOTIFY_EMAIL: ''          // почта для отбивок; пусто = почта владельца скрипта
 };
 // =============================================================
 
@@ -88,9 +89,32 @@ function book_(data) {
       { description: 'Телефон: ' + data.phone + '\nГостей: ' + (data.guests || '?') +
                      '\nСтолик №' + (booked + 1) + ' из ' + CONFIG.TABLES_PER_SLOT }
     );
+    notify_(data, hour, booked + 1);
     return { ok: true, tableNumber: booked + 1 };
   } finally {
     lock.releaseLock();
+  }
+}
+
+/** Письмо-отбивка кафе о новой брони. Ошибка почты не должна ломать бронь. */
+function notify_(data, hour, tableNumber) {
+  try {
+    var to = CONFIG.NOTIFY_EMAIL || Session.getEffectiveUser().getEmail();
+    if (!to) return;
+    var hh = ('0' + hour).slice(-2) + ':00';
+    MailApp.sendEmail({
+      to: to,
+      subject: 'Новая бронь: ' + data.date + ' в ' + hh + ' — ' + data.name,
+      body: 'Новая бронь столика!\n\n' +
+            'Дата: ' + data.date + '\n' +
+            'Время: ' + hh + '\n' +
+            'Имя: ' + data.name + '\n' +
+            'Телефон: ' + data.phone + '\n' +
+            'Гостей: ' + (data.guests || '?') + '\n' +
+            'Столик №' + tableNumber + ' из ' + CONFIG.TABLES_PER_SLOT
+    });
+  } catch (e) {
+    // ничего: бронь важнее письма
   }
 }
 
